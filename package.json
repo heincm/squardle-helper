@@ -8,5 +8,9 @@
   },
   "keywords": [],
   "author": "Chris Hein <chris.m.hein@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "inquirer": "^8.2.2",
+    "prompt-sync": "^4.2.0"
+  }
 }
