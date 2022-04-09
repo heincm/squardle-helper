@@ -1,10 +1,7 @@
-/* TODO: 
-3. Will compare word lists for two middle words and their middle letters
-4. Wil compare word lists for firt and last horizontal and veritcal words to ensure first and last letters are the same
-5. Probalby loop to ask users which word they are trying to solve and present word choices at that time
-    5.a But won't display word choices until at least some letters are known to be present or not present
-6. Instead of word objects, can possibly use multidimensional arrays. console.table() can show whole grid of board
-*/
+// TODO: Need to find a way to compare remaining wordlists and include only words with intersecting letters at intersection points
+// TODO: Once only one word remains in the list for a single word, autopopulate it into the mastermatrix
+//          or at least make it pop up saying that's all that's left for a certain word
+
 
 const prompt = require('prompt-sync')({ sigint: true });
 const fs = require('fs');
@@ -16,16 +13,19 @@ const readFileLines = filename =>
     fs.readFileSync(filename)
         .toString('UTF8')
         .toUpperCase()
-        .split('\n');
+        // .split('\n');
+        .split(' ')
 
-let masterWordList = readFileLines('./fiveLetterWords.txt');
+// let masterWordList = readFileLines('./fiveLetterWords.txt');
+let masterWordList = readFileLines('./squardleDict.txt');
 
 function Word(wordList, name) {
     this.name = name;
     this.wordList = wordList;
     this.badLetterSet = new Set();
+    // TODO turn the valid array into a set
     this.validLetterArray = [];
-    this.fixedLetters = [0, 0, 0, 0, 0];
+    this.fixedLetters = [null, null, null, null, null];
 }
 
 let v1 = new Word(masterWordList, 'v1')
@@ -36,55 +36,6 @@ let h2 = new Word(masterWordList, 'h2')
 let h3 = new Word(masterWordList, 'h3')
 
 let varArray = [v1, v2, v3, h1, h2, h3]
-
-let verticalMatrix = [v1.fixedLetters, v2.fixedLetters, v3.fixedLetters];
-let horizontalMatrix = [h1.fixedLetters, h2.fixedLetters, h3.fixedLetters]
-
-// let intersectionMap = new Map(
-//     [
-//         [v1.fixedLetters[0], h1.fixedLetters[0]],
-//         [v1.fixedLetters[2], h2.fixedLetters[0]],
-//         [v1.fixedLetters[4], h3.fixedLetters[0]],
-//         [v2.fixedLetters[0], h1.fixedLetters[2]],
-//         [v2.fixedLetters[2], h2.fixedLetters[2]],
-//         [v2.fixedLetters[4], h3.fixedLetters[2]],
-//         [v3.fixedLetters[0], h1.fixedLetters[4]],
-//         [v3.fixedLetters[2], h2.fixedLetters[4]],
-//         [v3.fixedLetters[4], h3.fixedLetters[4]],
-
-//         [h1.fixedLetters[0], v1.fixedLetters[0]],
-//         [h2.fixedLetters[0], v1.fixedLetters[2]],
-//         [h3.fixedLetters[0], v1.fixedLetters[4]],
-//         [h1.fixedLetters[2], v2.fixedLetters[0]],
-//         [h2.fixedLetters[2], v2.fixedLetters[2]],
-//         [h3.fixedLetters[2], v2.fixedLetters[4]],
-//         [h1.fixedLetters[4], v3.fixedLetters[0]],
-//         [h2.fixedLetters[4], v3.fixedLetters[2]],
-//         [h3.fixedLetters[4], v3.fixedLetters[4]],
-//         ["pink", "blue"]
-//     ]
-// )
-
-let masterMatrix = [
-    ['','','','',''],
-    ['',null,'',null,''],
-    ['','','','',''],
-    ['',null,'',null,''],
-    ['','','','','']
-]
-
-v1.fixedLetters = masterMatrix[0]
-v2.fixedLetters = masterMatrix[2]
-v3.fixedLetters = masterMatrix[4]
-h1.fixedLetters = [masterMatrix[0][0], masterMatrix[0][1], masterMatrix[0][2], masterMatrix[0][3], masterMatrix[0][4]]
-h2.fixedLetters = [masterMatrix[2][0], masterMatrix[2][1], masterMatrix[2][2], masterMatrix[2][3], masterMatrix[2][4]]
-h3.fixedLetters = [masterMatrix[4][0], masterMatrix[4][1], masterMatrix[4][2], masterMatrix[4][3], masterMatrix[4][4]]
-
-function checkMaster() {
-    if (masterMatrix){}
-}
-
-console.table(masterMatrix)
 
 function populateBadLetterSet(userInput) {
     let anyBadLetterSet = new Set()
@@ -102,10 +53,6 @@ function filterBadLetterWords(badLetters, word) {
 }
 
 function viewAnswers(word) {
-    console.log('Horizontal Matrix: ')
-    console.table(horizontalMatrix)
-    console.log('Vertical Matrix')
-    console.table(verticalMatrix)
     console.log(word.wordList)
 }
 
@@ -132,7 +79,7 @@ function enterGlobalBadLetters() {
     }
 }
 
-function placeKnownLetters(word) {
+function placeKnownLetters(word, masterMatrix) {
     for (let letter of word.validLetterArray) {
         let validLetterLocationPrompt = prompt(`If known, type the location(s) of the letter ${letter}, else leave blank `, 6)
             .toString()
@@ -140,19 +87,23 @@ function placeKnownLetters(word) {
         for (let entry of validLetterLocationPrompt) {
             let validLetterLocation = parseInt(entry) - 1
             if (validLetterLocation <= 4) {
-                let updatedWordList = word.wordList.filter(word => word[validLetterLocation] === letter)
-                // TODO: Do i really want to remove letters from the array once I know where they go? 
-                // May be better off using a set for this and keeping the letters there
-                //  IF ^^^^ Then need to 
-                let validLetterArray = word.validLetterArray.filter(arrayLetter => arrayLetter != letter)
-                // let fixedLetters = 
-                word.fixedLetters.splice(validLetterLocation, 1, letter)
-                // word.fixedLetters = fixedLetters
-                word.wordList = updatedWordList
-                word.validLetterArray = validLetterArray
+                let { counterWord, counterIndexLocation } = returnIntersectedWordAndIndex(word, validLetterLocation)
+                filterGoodWordLetters(word, validLetterLocation, letter)
+                if (counterWord) {
+                    filterGoodWordLetters(counterWord, counterIndexLocation, letter)
+                }
             }
         }
     }
+}
+
+function filterGoodWordLetters(word, index, letter) {
+    word.wordList = word.wordList.filter(word => word[index] === letter)
+    word.validLetterArray = word.validLetterArray.filter(arrayLetter => arrayLetter != letter)
+    // TODO: Do i really want to remove letters from the array once I know where they go? 
+    // May be better off using a set for this and keeping the letters there
+    //  IF ^^^^ Then need to 
+    word.fixedLetters.splice(index, 1, letter)
 }
 
 function enterKnownWord(word) {
@@ -170,22 +121,124 @@ function enterLocalNonLocation(word) {
         for (let entry of validLetterNonLocationPrompt) {
             let validLetterNonLocation = parseInt(entry) - 1
             if (validLetterNonLocation <= 4) {
-                let updatedWordList = word.wordList.filter(word => word[validLetterNonLocation] != letter)
-                word.wordList = updatedWordList
+                let { counterWord, counterIndexLocation } = returnIntersectedWordAndIndex(word, validLetterNonLocation)
+                filterLocalNonLetters(word, validLetterNonLocation, letter)
+                if (counterWord) {
+                    filterLocalNonLetters(counterWord, counterIndexLocation, letter)
+                }
             }
         }
     }
 }
 
-function updateIntersectedValue(word, index) {
-    if (index === 0 || index === 2 || index === 4) {
-        console.log(intersectionMap.get(word.fixedLetters[index]))
-        console.log(intersectionMap.get(v1.fixedLetters[0]))
-        console.log(intersectionMap.get('pink'))
+function filterLocalNonLetters(wordObj, index, letter) {
+    wordObj.wordList = wordObj.wordList.filter(word => word[index] != letter)
+}
+
+function returnIntersectedWordAndIndex(word, indexLocation) {
+    let counterWord = null;
+    let counterIndexLocation = null;
+
+    if (word.name === 'v1' && indexLocation === 0) {
+        counterWord = h1;
+        counterIndexLocation = 0;
     }
+    if (word.name === 'v1' && indexLocation === 2) {
+        counterWord = h2;
+        counterIndexLocation = 0;
+    }
+    if (word.name === 'v1' && indexLocation === 4) {
+        counterWord = h3;
+        counterIndexLocation = 0;
+    }
+
+
+    if (word.name === 'v2' && indexLocation === 0) {
+        counterWord = h1;
+        counterIndexLocation = 2;
+    }
+    if (word.name === 'v2' && indexLocation === 2) {
+        counterWord = h2;
+        counterIndexLocation = 2;
+    }
+    if (word.name === 'v2' && indexLocation === 4) {
+        counterWord = h3;
+        counterIndexLocation = 2;
+    }
+
+
+    if (word.name === 'v3' && indexLocation === 0) {
+        counterWord = h1;
+        counterIndexLocation = 4;
+    }
+    if (word.name === 'v3' && indexLocation === 2) {
+        counterWord = h2;
+        counterIndexLocation = 4;
+    }
+    if (word.name === 'v3' && indexLocation === 4) {
+        counterWord = h3;
+        counterIndexLocation = 4;
+    }
+
+
+
+
+
+    if (word.name === 'h1' && indexLocation === 0) {
+        counterWord = v1;
+        counterIndexLocation = 0;
+    }
+    if (word.name === 'h1' && indexLocation === 2) {
+        counterWord = v2;
+        counterIndexLocation = 0;
+    }
+    if (word.name === 'h1' && indexLocation === 4) {
+        counterWord = v3;
+        counterIndexLocation = 0;
+    }
+
+
+    if (word.name === 'h2' && indexLocation === 0) {
+        counterWord = v1;
+        counterIndexLocation = 2;
+    }
+    if (word.name === 'h2' && indexLocation === 2) {
+        counterWord = v2;
+        counterIndexLocation = 2;
+    }
+    if (word.name === 'h2' && indexLocation === 4) {
+        counterWord = v3;
+        counterIndexLocation = 2;
+    }
+
+
+    if (word.name === 'h3' && indexLocation === 0) {
+        counterWord = v1;
+        counterIndexLocation = 4;
+    }
+    if (word.name === 'h3' && indexLocation === 2) {
+        counterWord = v2;
+        counterIndexLocation = 4;
+    }
+    if (word.name === 'h3' && indexLocation === 4) {
+        counterWord = v3;
+        counterIndexLocation = 4;
+    }
+
+    return { counterWord, counterIndexLocation }
 }
 
 function askWordActions() {
+    let masterMatrix = [
+        [v1.fixedLetters[0] || h1.fixedLetters[0], h1.fixedLetters[1], v2.fixedLetters[0] || h1.fixedLetters[2], h1.fixedLetters[3], v3.fixedLetters[0] || h1.fixedLetters[4]],
+        [v1.fixedLetters[1], null, v2.fixedLetters[1], null, v3.fixedLetters[1]],
+        [v1.fixedLetters[2] || h2.fixedLetters[0], h2.fixedLetters[1], v2.fixedLetters[2] || h2.fixedLetters[2], h2.fixedLetters[3], v3.fixedLetters[2] || h2.fixedLetters[4]],
+        [v1.fixedLetters[3], null, v2.fixedLetters[3], null, v3.fixedLetters[3]],
+        [v1.fixedLetters[4] || h3.fixedLetters[0], h3.fixedLetters[1], v2.fixedLetters[4] || h3.fixedLetters[2], h3.fixedLetters[3], v3.fixedLetters[4] || h3.fixedLetters[4]]
+    ]
+
+    console.table(masterMatrix)
+
     inquirer.prompt([
         {
             name: "wordAction",
@@ -198,6 +251,7 @@ function askWordActions() {
             name: "whichWord",
             type: "list",
             message: "Which word would you like to interact with?",
+            // TODO remove word choices once solved
             choices: ["v1", "v2", "v3", "h1", "h2", "h3"],
             default: "v1",
             when: answers => answers.wordAction != ENTER_GLOBAL_BAD
@@ -214,9 +268,9 @@ function askWordActions() {
                     break
                 case ENTER_LOCAL_KNOWN:
                     enterLocalKnown(word)
-                    placeKnownLetters(word)
+                    placeKnownLetters(word, masterMatrix)
+                    // TODO maybe ask this before placing letters in known location
                     enterLocalNonLocation(word)
-                    viewAnswers(word)
                     break
                 case ENTER_LOCAL_BAD:
                     enterLocalBadLetters(word)
