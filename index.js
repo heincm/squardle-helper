@@ -107,10 +107,20 @@ function filterGoodWordLetters(word, index, letter) {
 }
 
 function enterKnownWord(word) {
-    let knownWord = prompt('Type the known word: ')
+    let knownWord = prompt('Type the known word: ').toUpperCase()
     let updatedArray = Array.from(knownWord)
     word.fixedLetters = updatedArray
-    word.wordList = updatedArray
+    word.wordList = [knownWord]
+    updateIntersectedWordsFromKnownWord(word)
+}
+
+function updateIntersectedWordsFromKnownWord(word) {
+    for (let [index, letter] of word.fixedLetters.entries()) {
+        let {counterWord, counterIndexLocation} = returnIntersectedWordAndIndex(word, index)
+        if (counterWord) {
+            filterGoodWordLetters(counterWord, counterIndexLocation, letter)
+        }
+    }
 }
 
 function enterLocalNonLocation(word) {
@@ -244,7 +254,7 @@ function askWordActions() {
             name: "wordAction",
             type: "list",
             message: "What action would you like to take?",
-            choices: [VIEW_ANSWERS, ENTER_LOCAL_KNOWN, ENTER_LOCAL_BAD, ENTER_GLOBAL_BAD],
+            choices: [VIEW_ANSWERS, ENTER_LOCAL_KNOWN, ENTER_LOCAL_BAD, ENTER_GLOBAL_BAD, ENTER_KNOWN_WORD],
             default: VIEW_ANSWERS,
         },
         {
@@ -268,15 +278,18 @@ function askWordActions() {
                     break
                 case ENTER_LOCAL_KNOWN:
                     enterLocalKnown(word)
+                    enterLocalNonLocation(word)
                     placeKnownLetters(word, masterMatrix)
                     // TODO maybe ask this before placing letters in known location
-                    enterLocalNonLocation(word)
                     break
                 case ENTER_LOCAL_BAD:
                     enterLocalBadLetters(word)
                     break
                 case ENTER_GLOBAL_BAD:
                     enterGlobalBadLetters()
+                    break
+                case ENTER_KNOWN_WORD:
+                    enterKnownWord(word)
                     break
                 default:
                     askAboutExit()
